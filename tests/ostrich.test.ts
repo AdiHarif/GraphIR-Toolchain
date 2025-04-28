@@ -43,7 +43,14 @@ function runDuctape(tsFile: string) {
 }
 
 function runNative(benchmark: string) {
-    return 5;
+    const dir = `submodules/TS-Ostrich/native/${benchmark}`;
+    const out = execSync(`make build/c/run.sh`, { stdio: 'ignore', timeout: 30000, cwd: dir });
+    const nativeStartTime = process.hrtime();
+    execSync(`./build/c/run.sh`, { timeout: 30000, cwd: dir });
+    const nativeEndTime = process.hrtime(nativeStartTime);
+    const nativeTime = nativeEndTime[0] + nativeEndTime[1] / 1e9;
+
+    return nativeTime;
 }
 
 function runJS(tsFile: string, jitless = false) {
