@@ -8,6 +8,18 @@ beforeEach(() => {
 });
 
 const results: any = {};
+const memory: any = {};
+
+function runWithMeasure(cmd: string, args: any) {
+    const exec = "/usr/bin/time"
+    const tsStartTime = process.hrtime();
+    const out = execSync(`${exec} -v ${cmd} 2>&1`, {...args});
+    console.log(out.toString());
+    const endTime = process.hrtime(tsStartTime);
+    const time = endTime[0] + endTime[1] / 1e9;
+    const memory = parseInt(out.toString().split("Maximum resident set size (kbytes): ")[1].split("\n")[0], 10);
+    return { time, memory };
+}
 
 const supported = [
     "bfs",
@@ -29,32 +41,29 @@ afterAll(() => {
         const {jitlessTime, jsTime, ductapeTime, nativeTime} = results[benchmark];
         fs.appendFileSync(outpath, `${benchmark},${jitlessTime},${jsTime},${ductapeTime},${nativeTime}\n`);
     }
+
+    const memoryPath = "ostrich_memory.csv";
+    fs.writeFileSync(memoryPath, "Benchmark,Node (JIT-less),Node,DUCTAPE,Handcrafted Native\n");
+    for (const benchmark in memory) {
+        const {jitlessMemory, jsMemory, ductapeMemory, nativeMemory} = memory[benchmark];
+        fs.appendFileSync(memoryPath, `${benchmark},${jitlessMemory},${jsMemory},${ductapeMemory},${nativeMemory}\n`);
+    }
 });
 
 function runDuctape(tsFile: string) {
     const execFile = 'out/a.out';
     execSync(`npm start -- -i ${tsFile} -o ${execFile}`, { stdio: 'ignore', timeout: 30000 });
-    const nativeStartTime = process.hrtime();
-    execSync(`${execFile}`, { stdio: 'ignore', timeout: 30000 });
-    const ductapeEndTime = process.hrtime(nativeStartTime);
-    const ductapeTime = ductapeEndTime[0] + ductapeEndTime[1] / 1e9;
-
-    return ductapeTime;
+    return runWithMeasure(`${execFile}`, { timeout: 30000 });
 }
 
 function runNative(benchmark: string) {
-    return 5;
+    return {time: 0, memory: 0};
 }
 
 function runJS(tsFile: string, jitless = false) {
     const outDir = 'out';
     execSync(`tsc --outDir ${outDir} --skipLibCheck ${tsFile} --target ESNext`, { stdio: 'ignore', timeout: 30000 });
-    const tsStartTime = process.hrtime();
-    execSync(`node ${jitless ? '--jitless' : ''} ${outDir}/*.js`, { stdio: 'ignore', timeout: jitless ? 300000 : 30000 });
-    const endTime = process.hrtime(tsStartTime);
-    const jsTime = endTime[0] + endTime[1] / 1e9;
-
-    return jsTime;
+    return runWithMeasure(`node ${jitless ? '--jitless' : ''} ${outDir}/*.js`, { timeout: jitless ? 300000 : 30000 });
 }
 
 function runBenchmark(benchmark: string) {
@@ -63,13 +72,32 @@ function runBenchmark(benchmark: string) {
     let ductapeTime = 0;
     let nativeTime = 0;
 
-    const iterations = 10;
+    let jitlessMemory = 0;
+    let jsMemory = 0;
+    let ductapeMemory = 0;
+    let nativeMemory = 0;
+
+    let out: any = {};
+
+    const iterations = 1;
     for (let i = 0; i < iterations; i++) {
         const tsFile = `submodules/TS-Ostrich/benchmarks/${benchmark}.ts`;
-        jitlessTime += runJS(tsFile, true);
-        jsTime += runJS(tsFile);
-        ductapeTime += runDuctape(tsFile);
-        nativeTime += runNative(benchmark);
+
+        out = runJS(tsFile, true);
+        jitlessTime += out['time'];
+        jitlessMemory += out['memory'];
+
+        out = runJS(tsFile);
+        jsTime += out['time'];
+        jsMemory += out['memory'];
+
+        out = runDuctape(tsFile);
+        ductapeTime += out['time'];
+        ductapeMemory += out['memory'];
+
+        out = runNative(benchmark);
+        nativeTime += out['time'];
+        nativeMemory += out['memory'];
     }
 
     jitlessTime /= iterations;
@@ -82,6 +110,18 @@ function runBenchmark(benchmark: string) {
         jsTime,
         ductapeTime,
         nativeTime
+    };
+
+    jitlessMemory /= iterations;
+    jsMemory /= iterations;
+    ductapeMemory /= iterations;
+    nativeMemory /= iterations;
+
+    memory[benchmark] = {
+        jitlessMemory,
+        jsMemory,
+        ductapeMemory,
+        nativeMemory
     };
 }
 
