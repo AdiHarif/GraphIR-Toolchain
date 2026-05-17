@@ -20,6 +20,7 @@ function partial_verify(board, x, y) {
 	return true;
 }
 
+// @ductape-export
 function solve(board, x, y) {
 	let z = x * 9 + y + 1;
 	if (z == 82) {

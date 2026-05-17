@@ -9,6 +9,7 @@
     "build": "tsc",
     "build:watch": "tsc -w",
     "start": "node build/main.js",
+    "start_sl": "node build/main.js --compilation-mode gradual",
     "test": "jest --runInBand",
     "test:benchmark": "jest && python3 scripts/benchmarks.py -i benchmarks.csv --show",
     "prepare": "npm run build"
@@ -17,9 +18,10 @@
   "license": "ISC",
   "dependencies": {
     "graphir": "github:AdiHarif/GraphIR#03aa564",
-    "graphir-compiler": "github:AdiHarif/GraphIR-Backend#5dfe687",
+    "graphir-compiler": "github:Tiefen-boop/GraphIR-Backend#9a8e102",
     "ts-graph-extractor": "github:AdiHarif/GraphIR-Extractor#52d5675",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "node-addon-api": "^8.6.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.13",
